@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advanced Calculator</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --key: #334155;
+      --key-hover: #475569;
+      --fn: #1e3a5f;
+      --op: #f59e0b;
+      --eq: #10b981;
+      --danger: #ef4444;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+    .app { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+
+    .calculator {
+      background: var(--panel);
+      border-radius: 20px;
+      padding: 20px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px; font-size: 13px; color: var(--muted);
+    }
+    .mode-btn, .mem-indicator {
+      background: var(--key); border: none; color: var(--text);
+      padding: 4px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+    }
+    .mem-indicator { cursor: default; opacity: 0; transition: opacity .2s; }
+    .mem-indicator.on { opacity: 1; }
+
+    .display {
+      background: #0b1220;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      text-align: right;
+      min-height: 100px;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      word-break: break-all;
+    }
+    .expression { color: var(--muted); font-size: 18px; min-height: 24px; }
+    .result { font-size: 36px; font-weight: 600; margin-top: 6px; }
+    .result.error { color: var(--danger); font-size: 20px; }
+
+    .keys { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    button.key {
+      border: none; border-radius: 10px; padding: 14px 0;
+      font-size: 16px; color: var(--text); background: var(--key);
+      cursor: pointer; transition: background .15s, transform .05s;
+    }
+    button.key:hover { background: var(--key-hover); }
+    button.key:active { transform: scale(0.95); }
+    .key.fn { background: var(--fn); font-size: 14px; }
+    .key.op { background: var(--op); color: #111; font-weight: 700; }
+    .key.eq { background: var(--eq); color: #111; font-weight: 700; }
+    .key.clear { background: var(--danger); }
+
+    .history {
+      background: var(--panel);
+      border-radius: 20px;
+      padding: 20px;
+      width: 100%;
+      max-width: 280px;
+      max-height: 560px;
+      display: flex; flex-direction: column;
+    }
+    .history h2 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; }
+    .history h2 button {
+      background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px;
+    }
+    .history ul { list-style: none; overflow-y: auto; flex: 1; }
+    .history li {
+      padding: 10px; border-radius: 8px; cursor: pointer; text-align: right;
+      border-bottom: 1px solid var(--key);
+    }
+    .history li:hover { background: var(--key); }
+    .history .h-expr { color: var(--muted); font-size: 13px; }
+    .history .h-res { font-size: 18px; font-weight: 600; }
+    .history .empty { color: var(--muted); font-size: 14px; text-align: center; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="calculator">
+      <div class="topbar">
+        <button class="mode-btn" id="modeBtn" title="Switch angle mode">DEG</button>
+        <span class="mem-indicator" id="memIndicator">M</span>
+        <span>Advanced Calculator</span>
+      </div>
+
+      <div class="display">
+        <div class="expression" id="expression"></div>
+        <div class="result" id="result">0</div>
+      </div>
+
+      <div class="keys">
+        <!-- Memory row -->
+        <button class="key fn" data-action="mc">MC</button>
+        <button class="key fn" data-action="mr">MR</button>
+        <button class="key fn" data-action="mplus">M+</button>
+        <button class="key fn" data-action="mminus">M−</button>
+        <button class="key fn" data-action="ans">Ans</button>
+
+        <!-- Scientific rows -->
+        <button class="key fn" data-insert="sin(">sin</button>
+        <button class="key fn" data-insert="cos(">cos</button>
+        <button class="key fn" data-insert="tan(">tan</button>
+        <button class="key fn" data-insert="log(">log</button>
+        <button class="key fn" data-insert="ln(">ln</button>
+
+        <button class="key fn" data-insert="asin(">sin⁻¹</button>
+        <button class="key fn" data-insert="acos(">cos⁻¹</button>
+        <button class="key fn" data-insert="atan(">tan⁻¹</button>
+        <button class="key fn" data-insert="√(">√</button>
+        <button class="key fn" data-insert="cbrt(">∛</button>
+
+        <button class="key fn" data-insert="^2">x²</button>
+        <button class="key fn" data-insert="^">xʸ</button>
+        <button class="key fn" data-insert="fact(">n!</button>
+        <button class="key fn" data-insert="π">π</button>
+        <button class="key fn" data-insert="e">e</button>
+
+        <!-- Main keypad -->
+        <button class="key clear" data-action="clear">AC</button>
+        <button class="key" data-action="back">⌫</button>
+        <button class="key" data-insert="(">(</button>
+        <button class="key" data-insert=")">)</button>
+        <button class="key op" data-insert="÷">÷</button>
+
+        <button class="key" data-insert="7">7</button>
+        <button class="key" data-insert="8">8</button>
+        <button class="key" data-insert="9">9</button>
+        <button class="key fn" data-insert="%">%</button>
+        <button class="key op" data-insert="×">×</button>
+
+        <button class="key" data-insert="4">4</button>
+        <button class="key" data-insert="5">5</button>
+        <button class="key" data-insert="6">6</button>
+        <button class="key fn" data-insert="abs(">|x|</button>
+        <button class="key op" data-insert="−">−</button>
+
+        <button class="key" data-insert="1">1</button>
+        <button class="key" data-insert="2">2</button>
+        <button class="key" data-insert="3">3</button>
+        <button class="key fn" data-action="negate">±</button>
+        <button class="key op" data-insert="+">+</button>
+
+        <button class="key" data-insert="0" style="grid-column: span 2">0</button>
+        <button class="key" data-insert=".">.</button>
+        <button class="key eq" data-action="equals" style="grid-column: span 2">=</button>
+      </div>
+    </div>
+
+    <div class="history">
+      <h2>History <button id="clearHistory">Clear</button></h2>
+      <ul id="historyList"><li class="empty">No calculations yet</li></ul>
+    </div>
+  </div>
+
+  <script>
+    const exprEl = document.getElementById("expression");
+    const resultEl = document.getElementById("result");
+    const modeBtn = document.getElementById("modeBtn");
+    const memIndicator = document.getElementById("memIndicator");
+    const historyList = document.getElementById("historyList");
+
+    let expression = "";
+    let lastAnswer = "0";
+    let memory = 0;
+    let angleMode = "deg";
+    let justEvaluated = false;
+    let history = [];
+
+    function render() {
+      exprEl.textContent = expression;
+    }
+
+    function showResult(text, isError = false) {
+      resultEl.textContent = text;
+      resultEl.classList.toggle("error", isError);
+    }
+
+    function insert(value) {
+      // Start a new expression after "=" if user types a number/function
+      if (justEvaluated) {
+        const isOperator = /^[+−×÷^%]/.test(value);
+        expression = isOperator ? lastAnswer : "";
+        justEvaluated = false;
+      }
+      expression += value;
+      render();
+    }
+
+    async function calculate(expr) {
+      const res = await fetch("/api/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expression: expr, angle_mode: angleMode }),
+      });
+      return res.json();
+    }
+
+    async function equals() {
+      if (!expression) return;
+      // Auto-close any open brackets
+      const open = (expression.match(/\(/g) || []).length;
+      const close = (expression.match(/\)/g) || []).length;
+      if (open > close) expression += ")".repeat(open - close);
+      render();
+
+      try {
+        const data = await calculate(expression);
+        if (data.ok) {
+          showResult(data.result);
+          lastAnswer = data.result;
+          addHistory(expression, data.result);
+          justEvaluated = true;
+        } else {
+          showResult(data.error, true);
+        }
+      } catch {
+        showResult("Server not reachable", true);
+      }
+    }
+
+    function addHistory(expr, result) {
+      history.unshift({ expr, result });
+      if (history.length > 50) history.pop();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      if (!history.length) {
+        historyList.innerHTML = '<li class="empty">No calculations yet</li>';
+        return;
+      }
+      historyList.innerHTML = "";
+      history.forEach((h) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<div class="h-expr"></div><div class="h-res"></div>`;
+        li.querySelector(".h-expr").textContent = h.expr + " =";
+        li.querySelector(".h-res").textContent = h.result;
+        li.addEventListener("click", () => {
+          expression = h.expr;
+          justEvaluated = false;
+          render();
+          showResult(h.result);
+        });
+        historyList.appendChild(li);
+      });
+    }
+
+    function currentValue() {
+      const n = parseFloat(resultEl.textContent);
+      return isNaN(n) ? 0 : n;
+    }
+
+    function updateMemoryIndicator() {
+      memIndicator.classList.toggle("on", memory !== 0);
+    }
+
+    const actions = {
+      clear() { expression = ""; justEvaluated = false; render(); showResult("0"); },
+      back() {
+        if (justEvaluated) { justEvaluated = false; }
+        // remove whole function names like "sin(" in one step
+        const m = expression.match(/(asin|acos|atan|sin|cos|tan|log|ln|cbrt|fact|abs|√)\($/);
+        expression = m ? expression.slice(0, -m[0].length) : expression.slice(0, -1);
+        render();
+      },
+      equals,
+      negate() {
+        if (justEvaluated) { expression = lastAnswer; justEvaluated = false; }
+        expression = expression.startsWith("−(") && expression.endsWith(")")
+          ? expression.slice(2, -1)
+          : `−(${expression || "0"})`;
+        render();
+      },
+      ans() { insert(lastAnswer); },
+      mc() { memory = 0; updateMemoryIndicator(); },
+      mr() { insert(String(memory)); },
+      mplus() { memory += currentValue(); updateMemoryIndicator(); },
+      mminus() { memory -= currentValue(); updateMemoryIndicator(); },
+    };
+
+    document.querySelectorAll(".key").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.insert !== undefined) insert(btn.dataset.insert);
+        else if (btn.dataset.action) actions[btn.dataset.action]();
+      });
+    });
+
+    modeBtn.addEventListener("click", () => {
+      angleMode = angleMode === "deg" ? "rad" : "deg";
+      modeBtn.textContent = angleMode.toUpperCase();
+    });
+
+    document.getElementById("clearHistory").addEventListener("click", () => {
+      history = [];
+      renderHistory();
+    });
+
+    // Keyboard support
+    document.addEventListener("keydown", (e) => {
+      const map = { "*": "×", "/": "÷", "-": "−", "+": "+", "^": "^", "%": "%",
+                    "(": "(", ")": ")", ".": "." };
+      if (/^[0-9]$/.test(e.key)) insert(e.key);
+      else if (map[e.key]) { e.preventDefault(); insert(map[e.key]); }
+      else if (e.key === "Enter" || e.key === "=") { e.preventDefault(); equals(); }
+      else if (e.key === "Backspace") actions.back();
+      else if (e.key === "Escape") actions.clear();
+    });
+  </script>
+</body>
+</html>
